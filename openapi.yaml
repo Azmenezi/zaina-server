@@ -1,0 +1,608 @@
+openapi: 3.0.3
+info:
+  title: RISE - Women Leadership Development Program API
+  description: |
+    API for the RISE MVP backend supporting women leadership development program.
+
+    Features:
+    - User management with roles (APPLICANT, PARTICIPANT, ALUMNA, MENTOR)
+    - Profile management with search capabilities
+    - Messaging system for user communication
+    - Connection and mentorship requests
+    - Events and resources management with pagination
+    - JWT-based authentication
+
+  version: 1.0.0
+  contact:
+    name: RISE Development Team
+    email: tech@rise-program.com
+
+servers:
+  - url: http://localhost:8080
+    description: Development server
+  - url: https://api.rise-program.com
+    description: Production server
+
+security:
+  - bearerAuth: []
+
+paths:
+  # Authentication endpoints
+  /api/auth/login:
+    post:
+      tags: [Authentication]
+      summary: User login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+              required: [email, password]
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    $ref: "#/components/schemas/UserDto"
+
+  /api/auth/register:
+    post:
+      tags: [Authentication]
+      summary: User registration
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                role:
+                  $ref: "#/components/schemas/UserRole"
+              required: [email, password, role]
+      responses:
+        "200":
+          description: Registration successful
+
+  # Profile endpoints
+  /api/profiles/{userId}:
+    get:
+      tags: [Profiles]
+      summary: Get user profile
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileDto"
+    put:
+      tags: [Profiles]
+      summary: Update own profile
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileDto"
+
+  /api/profiles/search:
+    get:
+      tags: [Profiles]
+      summary: Search profiles
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProfileDto"
+
+  # Messaging endpoints
+  /api/messages:
+    post:
+      tags: [Messaging]
+      summary: Send message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageRequest"
+      responses:
+        "200":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /api/messages/thread/{otherUserId}:
+    get:
+      tags: [Messaging]
+      summary: Get conversation with user
+      parameters:
+        - name: otherUserId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Conversation retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationResponse"
+
+  /api/messages/{messageId}/read:
+    put:
+      tags: [Messaging]
+      summary: Mark message as read
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Message marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # Connection endpoints
+  /api/connections:
+    post:
+      tags: [Connections]
+      summary: Create connection request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateConnectionRequest"
+      responses:
+        "200":
+          description: Connection request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionResponse"
+
+  /api/connections/pending:
+    get:
+      tags: [Connections]
+      summary: Get pending connection requests
+      responses:
+        "200":
+          description: Pending requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConnectionResponse"
+
+  /api/connections/{connectionId}:
+    put:
+      tags: [Connections]
+      summary: Accept or decline connection request
+      parameters:
+        - name: connectionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateConnectionRequest"
+      responses:
+        "200":
+          description: Connection updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionResponse"
+
+  /api/connections/accepted:
+    get:
+      tags: [Connections]
+      summary: Get accepted connections
+      responses:
+        "200":
+          description: Accepted connections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConnectionResponse"
+
+  # Events endpoints
+  /api/events:
+    get:
+      tags: [Events]
+      summary: Get all events
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Events retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EventDto"
+
+  /api/events/public:
+    get:
+      tags: [Events]
+      summary: Get public events
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Public events retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EventDto"
+
+  # Resources endpoints
+  /api/resources:
+    get:
+      tags: [Resources]
+      summary: Get all resources
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Resources retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResourceDto"
+
+  /api/resources/search:
+    get:
+      tags: [Resources]
+      summary: Search resources
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResourceDto"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UserRole:
+      type: string
+      enum: [APPLICANT, PARTICIPANT, ALUMNA, MENTOR]
+
+    ConnectionType:
+      type: string
+      enum: [CONNECT, MENTORSHIP]
+
+    ConnectionStatus:
+      type: string
+      enum: [PENDING, ACCEPTED, DECLINED]
+
+    UserDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/UserRole"
+        cohortId:
+          type: string
+          format: uuid
+          nullable: true
+        profile:
+          $ref: "#/components/schemas/ProfileDto"
+
+    ProfileDto:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        position:
+          type: string
+          nullable: true
+        company:
+          type: string
+          nullable: true
+        skills:
+          type: array
+          items:
+            type: string
+        bio:
+          type: string
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+        linkedinUrl:
+          type: string
+          nullable: true
+
+    UpdateProfileRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        position:
+          type: string
+          nullable: true
+        company:
+          type: string
+          nullable: true
+        skills:
+          type: array
+          items:
+            type: string
+        bio:
+          type: string
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+        linkedinUrl:
+          type: string
+          nullable: true
+
+    SendMessageRequest:
+      type: object
+      required: [receiverId, content]
+      properties:
+        receiverId:
+          type: string
+          format: uuid
+        content:
+          type: string
+
+    MessageResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        senderId:
+          type: string
+          format: uuid
+        receiverId:
+          type: string
+          format: uuid
+        content:
+          type: string
+        sentAt:
+          type: string
+          format: date-time
+        isRead:
+          type: boolean
+
+    ConversationResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/MessageResponse"
+        otherUserId:
+          type: string
+          format: uuid
+        otherUserName:
+          type: string
+          nullable: true
+
+    CreateConnectionRequest:
+      type: object
+      required: [targetId, type]
+      properties:
+        targetId:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/ConnectionType"
+
+    UpdateConnectionRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: "#/components/schemas/ConnectionStatus"
+
+    ConnectionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        requesterId:
+          type: string
+          format: uuid
+        targetId:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/ConnectionType"
+        status:
+          $ref: "#/components/schemas/ConnectionStatus"
+        requestedAt:
+          type: string
+          format: date-time
+        respondedAt:
+          type: string
+          format: date-time
+          nullable: true
+        requesterName:
+          type: string
+          nullable: true
+        targetName:
+          type: string
+          nullable: true
+
+    EventDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        date:
+          type: string
+          format: date-time
+        location:
+          type: string
+        isPublic:
+          type: boolean
+        attendeeCount:
+          type: integer
+
+    ResourceDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [PDF, VIDEO, LINK]
+        url:
+          type: string
+        module:
+          type: string
+        targetRoles:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserRole"
