@@ -1,7 +1,11 @@
+
 package com.zaina.zaina.security
 
 import io.jsonwebtoken.*
+import io.jsonwebtoken.io.Decoders
 import io.jsonwebtoken.security.Keys
+import io.jsonwebtoken.security.SecurityException
+import io.jsonwebtoken.SignatureAlgorithm
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.core.Authentication
@@ -20,73 +24,78 @@ class JwtUtils {
     private var jwtExpirationMs: Int = 86400000
 
     private val key: SecretKey by lazy {
-        Keys.hmacShaKeyFor(jwtSecret.toByteArray())
+        Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret))
     }
 
     fun generateJwtToken(authentication: Authentication): String {
         val userPrincipal = authentication.principal as UserPrincipal
         return Jwts.builder()
-            .subject(userPrincipal.username)
+            .setSubject(userPrincipal.username)
             .claim("id", userPrincipal.id.toString())
             .claim("role", userPrincipal.role.name)
-            .issuedAt(Date())
-            .expiration(Date(Date().time + jwtExpirationMs))
-            .signWith(key, Jwts.SIG.HS512)
+            .setIssuedAt(Date())
+            .setExpiration(Date(Date().time + jwtExpirationMs))
+            .signWith(key, SignatureAlgorithm.HS256)
             .compact()
     }
 
     fun generateTokenFromUsername(username: String): String {
         return Jwts.builder()
-            .subject(username)
-            .issuedAt(Date())
-            .expiration(Date(Date().time + jwtExpirationMs))
-            .signWith(key, Jwts.SIG.HS512)
+            .setSubject(username)
+            .setIssuedAt(Date())
+            .setExpiration(Date(Date().time + jwtExpirationMs))
+            .signWith(key, SignatureAlgorithm.HS256)
             .compact()
     }
 
     fun getUsernameFromJwtToken(token: String): String {
-        return Jwts.parser()
-            .verifyWith(key)
+        return Jwts.parserBuilder()
+            .setSigningKey(key)
             .build()
-            .parseSignedClaims(token)
-            .payload
-            .subject
+            .parseClaimsJws(token)
+            .body.subject
     }
 
     fun getUserIdFromJwtToken(token: String): UUID {
-        val claims = Jwts.parser()
-            .verifyWith(key)
+        val claims = Jwts.parserBuilder()
+            .setSigningKey(key)
             .build()
-            .parseSignedClaims(token)
-            .payload
+            .parseClaimsJws(token)
+            .body
         return UUID.fromString(claims["id"] as String)
     }
 
     fun getRoleFromJwtToken(token: String): String {
-        val claims = Jwts.parser()
-            .verifyWith(key)
+        val claims = Jwts.parserBuilder()
+            .setSigningKey(key)
             .build()
-            .parseSignedClaims(token)
-            .payload
+            .parseClaimsJws(token)
+            .body
         return claims["role"] as String
     }
 
     fun validateJwtToken(authToken: String): Boolean {
-        try {
-            Jwts.parser()
-                .verifyWith(key)
+        return try {
+            Jwts.parserBuilder()
+                .setSigningKey(key)
                 .build()
-                .parseSignedClaims(authToken)
-            return true
+                .parseClaimsJws(authToken)
+            true
+        } catch (e: SecurityException) {
+            logger.error("Invalid JWT signature: {}", e.message)
+            false
         } catch (e: MalformedJwtException) {
             logger.error("Invalid JWT token: {}", e.message)
+            false
         } catch (e: ExpiredJwtException) {
             logger.error("JWT token is expired: {}", e.message)
+            false
         } catch (e: UnsupportedJwtException) {
             logger.error("JWT token is unsupported: {}", e.message)
+            false
         } catch (e: IllegalArgumentException) {
             logger.error("JWT claims string is empty: {}", e.message)
+            false
         }
-        return false
     }
-} 
+}
