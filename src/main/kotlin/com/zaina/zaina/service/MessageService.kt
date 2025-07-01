@@ -18,7 +18,8 @@ import java.util.*
 class MessageService(
     private val messageRepository: MessageRepository,
     private val userRepository: UserRepository,
-    private val profileRepository: ProfileRepository
+    private val profileRepository: ProfileRepository,
+    private val webSocketService: WebSocketService
 ) {
 
     fun sendMessage(request: SendMessageRequest): MessageResponse {
@@ -42,7 +43,12 @@ class MessageService(
         )
 
         val savedMessage = messageRepository.save(message)
-        return MessageMapper.toMessageResponse(savedMessage)
+        val messageResponse = MessageMapper.toMessageResponse(savedMessage)
+        
+        // Send real-time notification via WebSocket
+        webSocketService.sendMessageToUser(messageResponse)
+        
+        return messageResponse
     }
 
     fun getConversation(otherUserId: UUID): ConversationResponse {
@@ -80,6 +86,11 @@ class MessageService(
 
         val updatedMessage = message.copy(isRead = true)
         val savedMessage = messageRepository.save(updatedMessage)
-        return MessageMapper.toMessageResponse(savedMessage)
+        val messageResponse = MessageMapper.toMessageResponse(savedMessage)
+        
+        // Send read receipt via WebSocket
+        webSocketService.sendReadReceipt(messageResponse, currentUserId)
+        
+        return messageResponse
     }
 } 

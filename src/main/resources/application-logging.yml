@@ -1,0 +1,64 @@
+logging:
+  level:
+    com.zaina.zaina: DEBUG
+    com.zaina.zaina.config.RequestLoggingInterceptor: INFO
+    com.zaina.zaina.websocket: INFO
+    com.zaina.zaina.service.WebSocketService: INFO
+    com.zaina.zaina.websocket.WebSocketAuthChannelInterceptor: INFO
+    com.zaina.zaina.websocket.WebSocketEventListener: INFO
+    com.zaina.zaina.controller: INFO
+    com.zaina.zaina.service: DEBUG
+    org.springframework.web.filter.CommonsRequestLoggingFilter: INFO
+    org.springframework.security: DEBUG
+    org.springframework.web.socket: DEBUG
+    org.springframework.messaging: DEBUG
+    org.springframework.messaging.simp: INFO
+    org.springframework.messaging.simp.stomp: INFO
+    org.springframework.web: INFO
+    org.springframework.security.web: DEBUG
+    org.springframework.security.authentication: DEBUG
+
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"
+
+  file:
+    name: logs/zaina-application.log
+    max-size: 10MB
+    max-history: 30
+
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30
+      total-size-cap: 1GB
+
+# Spring specific logging configurations
+spring:
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        type:
+          descriptor:
+            sql:
+              BasicBinder: TRACE
+
+  # Enable detailed web logging
+  web:
+    resources:
+      add-mappings: true
+
+  security:
+    debug: true
+
+  websocket:
+    # Enable detailed WebSocket logging
+    stomp:
+      broker:
+        heartbeat:
+          incoming: 10000
+          outgoing: 10000
+        relay:
+          auto-startup: true

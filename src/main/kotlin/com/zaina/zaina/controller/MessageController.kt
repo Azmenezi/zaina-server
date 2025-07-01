@@ -11,7 +11,7 @@ import java.util.*
 @RestController
 @RequestMapping("/api/messages")
 @CrossOrigin(origins = ["*"], maxAge = 3600)
-@PreAuthorize("hasRole('USER')")
+@PreAuthorize("hasRole('PARTICIPANT') or hasRole('ALUMNA') or hasRole('MENTOR')")
 class MessageController(
     private val messageService: MessageService
 ) {

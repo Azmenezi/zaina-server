@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zaina - Real-time Chat</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 20px;
+        height: 80vh;
+      }
+      .sidebar {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .chat-container {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+      }
+      .connection-status {
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+      .connected {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      .disconnected {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+      .messages {
+        flex: 1;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 5px;
+        background-color: #fafafa;
+      }
+      .message {
+        margin-bottom: 15px;
+        padding: 10px;
+        border-radius: 10px;
+        max-width: 70%;
+      }
+      .message.sent {
+        background-color: #007bff;
+        color: white;
+        margin-left: auto;
+        text-align: right;
+      }
+      .message.received {
+        background-color: #e9ecef;
+        color: #333;
+      }
+      .message-input {
+        display: flex;
+        gap: 10px;
+      }
+      .message-input input {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .message-input button {
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      .online-users {
+        margin-bottom: 20px;
+      }
+      .user-item {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+      }
+      .user-item:hover {
+        background-color: #f0f0f0;
+      }
+      .user-item.active {
+        background-color: #e3f2fd;
+      }
+      .online-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 10px;
+      }
+      .online {
+        background-color: #28a745;
+      }
+      .offline {
+        background-color: #6c757d;
+      }
+      .typing-indicator {
+        font-style: italic;
+        color: #666;
+        margin-bottom: 10px;
+      }
+      .login-form {
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        max-width: 400px;
+        margin: 100px auto;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      .form-group input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .btn {
+        width: 100%;
+        padding: 12px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+      }
+      .btn:hover {
+        background-color: #0056b3;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Login Form -->
+    <div id="loginForm" class="login-form">
+      <h2>Login to Zaina Chat</h2>
+      <div class="form-group">
+        <label>Email:</label>
+        <input type="email" id="loginEmail" placeholder="Enter your email" />
+      </div>
+      <div class="form-group">
+        <label>Password:</label>
+        <input
+          type="password"
+          id="loginPassword"
+          placeholder="Enter your password"
+        />
+      </div>
+      <button class="btn" onclick="login()">Login</button>
+    </div>
+
+    <!-- Main Chat Interface -->
+    <div id="chatInterface" style="display: none">
+      <h1>Zaina - Real-time Chat</h1>
+
+      <div class="connection-status" id="connectionStatus">
+        <span id="statusText">Connecting...</span>
+      </div>
+
+      <div class="container">
+        <div class="sidebar">
+          <div class="online-users">
+            <h3>Online Users</h3>
+            <div id="usersList"></div>
+          </div>
+
+          <div class="connections">
+            <h3>Connection Requests</h3>
+            <div id="connectionRequests"></div>
+          </div>
+        </div>
+
+        <div class="chat-container">
+          <div id="chatHeader">
+            <h3>Select a user to chat</h3>
+          </div>
+
+          <div class="messages" id="messagesContainer">
+            <!-- Messages will appear here -->
+          </div>
+
+          <div
+            class="typing-indicator"
+            id="typingIndicator"
+            style="display: none"
+          ></div>
+
+          <div class="message-input">
+            <input
+              type="text"
+              id="messageInput"
+              placeholder="Type your message..."
+              onkeypress="handleKeyPress(event)"
+              oninput="handleTyping()"
+            />
+            <button onclick="sendMessage()">Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let stompClient = null;
+      let currentUser = null;
+      let selectedUserId = null;
+      let authToken = null;
+      let typingTimeout = null;
+
+      // Login function
+      async function login() {
+        const email = document.getElementById("loginEmail").value;
+        const password = document.getElementById("loginPassword").value;
+
+        try {
+          const response = await fetch(
+            "http://localhost:8080/api/auth/signin",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ email, password }),
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            authToken = data.accessToken;
+            currentUser = data.user;
+
+            document.getElementById("loginForm").style.display = "none";
+            document.getElementById("chatInterface").style.display = "block";
+
+            connectWebSocket();
+            loadOnlineUsers();
+          } else {
+            alert("Login failed. Please check your credentials.");
+          }
+        } catch (error) {
+          console.error("Login error:", error);
+          alert("Login failed. Please try again.");
+        }
+      }
+
+      // WebSocket connection
+      function connectWebSocket() {
+        const socket = new SockJS("http://localhost:8080/ws");
+        stompClient = Stomp.over(socket);
+
+        // Add auth token to headers
+        const headers = {
+          Authorization: "Bearer " + authToken,
+        };
+
+        stompClient.connect(
+          headers,
+          function (frame) {
+            console.log("Connected: " + frame);
+            updateConnectionStatus(true);
+
+            // Subscribe to personal message queue
+            stompClient.subscribe("/user/queue/messages", function (message) {
+              const wsMessage = JSON.parse(message.body);
+              handleIncomingMessage(wsMessage);
+            });
+
+            // Subscribe to typing indicators
+            stompClient.subscribe("/user/queue/typing", function (message) {
+              const wsMessage = JSON.parse(message.body);
+              handleTypingIndicator(wsMessage);
+            });
+
+            // Subscribe to read receipts
+            stompClient.subscribe(
+              "/user/queue/read-receipts",
+              function (message) {
+                const wsMessage = JSON.parse(message.body);
+                handleReadReceipt(wsMessage);
+              }
+            );
+
+            // Subscribe to connection notifications
+            stompClient.subscribe(
+              "/user/queue/connections",
+              function (message) {
+                const wsMessage = JSON.parse(message.body);
+                handleConnectionNotification(wsMessage);
+              }
+            );
+
+            // Subscribe to user status updates
+            stompClient.subscribe("/topic/user-status", function (message) {
+              const wsMessage = JSON.parse(message.body);
+              handleUserStatusUpdate(wsMessage);
+            });
+
+            // Send initial status update
+            stompClient.send("/app/user.status", {}, JSON.stringify({}));
+          },
+          function (error) {
+            console.log("WebSocket connection error: " + error);
+            updateConnectionStatus(false);
+          }
+        );
+      }
+
+      // Handle incoming messages
+      function handleIncomingMessage(wsMessage) {
+        if (wsMessage.type === "CHAT_MESSAGE") {
+          const chatMessage = wsMessage.data;
+          displayMessage(chatMessage);
+
+          // Mark as read if chat window is open with sender
+          if (selectedUserId === chatMessage.senderId) {
+            markMessageAsRead(chatMessage.id);
+          }
+        }
+      }
+
+      // Handle typing indicators
+      function handleTypingIndicator(wsMessage) {
+        if (wsMessage.type === "TYPING_INDICATOR") {
+          const indicator = wsMessage.data;
+          if (selectedUserId === indicator.senderId) {
+            const typingDiv = document.getElementById("typingIndicator");
+            if (indicator.typing) {
+              typingDiv.textContent = `${indicator.senderName} is typing...`;
+              typingDiv.style.display = "block";
+            } else {
+              typingDiv.style.display = "none";
+            }
+          }
+        }
+      }
+
+      // Handle read receipts
+      function handleReadReceipt(wsMessage) {
+        if (wsMessage.type === "MESSAGE_READ_RECEIPT") {
+          const receipt = wsMessage.data;
+          // Update message UI to show as read
+          const messageElement = document.querySelector(
+            `[data-message-id="${receipt.messageId}"]`
+          );
+          if (messageElement) {
+            messageElement.classList.add("read");
+          }
+        }
+      }
+
+      // Handle connection notifications
+      function handleConnectionNotification(wsMessage) {
+        if (wsMessage.type === "CONNECTION_REQUEST") {
+          const connection = wsMessage.data;
+          displayConnectionRequest(connection);
+        } else if (wsMessage.type === "CONNECTION_ACCEPTED") {
+          const connection = wsMessage.data;
+          alert(`${connection.targetName} accepted your connection request!`);
+          loadOnlineUsers(); // Refresh user list
+        }
+      }
+
+      // Handle user status updates
+      function handleUserStatusUpdate(wsMessage) {
+        if (wsMessage.type === "USER_STATUS") {
+          const userStatus = wsMessage.data;
+          updateUserStatus(userStatus);
+        }
+      }
+
+      // Send message
+      function sendMessage() {
+        const messageInput = document.getElementById("messageInput");
+        const content = messageInput.value.trim();
+
+        if (content && selectedUserId && stompClient) {
+          const message = {
+            receiverId: selectedUserId,
+            content: content,
+          };
+
+          stompClient.send("/app/chat.send", {}, JSON.stringify(message));
+          messageInput.value = "";
+
+          // Stop typing indicator
+          sendTypingIndicator(false);
+        }
+      }
+
+      // Handle typing
+      function handleTyping() {
+        if (selectedUserId && stompClient) {
+          sendTypingIndicator(true);
+
+          // Clear previous timeout
+          if (typingTimeout) {
+            clearTimeout(typingTimeout);
+          }
+
+          // Stop typing after 3 seconds of inactivity
+          typingTimeout = setTimeout(() => {
+            sendTypingIndicator(false);
+          }, 3000);
+        }
+      }
+
+      // Send typing indicator
+      function sendTypingIndicator(isTyping) {
+        if (selectedUserId && stompClient) {
+          const indicator = {
+            receiverId: selectedUserId,
+            typing: isTyping,
+          };
+          stompClient.send("/app/chat.typing", {}, JSON.stringify(indicator));
+        }
+      }
+
+      // Mark message as read
+      function markMessageAsRead(messageId) {
+        if (stompClient) {
+          stompClient.send("/app/chat.markRead", {}, JSON.stringify(messageId));
+        }
+      }
+
+      // Display message in chat
+      function displayMessage(message) {
+        const messagesContainer = document.getElementById("messagesContainer");
+        const messageDiv = document.createElement("div");
+        messageDiv.className = `message ${
+          message.senderId === currentUser.id ? "sent" : "received"
+        }`;
+        messageDiv.setAttribute("data-message-id", message.id);
+
+        const senderName =
+          message.senderId === currentUser.id ? "You" : message.senderName;
+        messageDiv.innerHTML = `
+                <div><strong>${senderName}</strong></div>
+                <div>${message.content}</div>
+                <div style="font-size: 0.8em; color: #666;">${new Date(
+                  message.sentAt
+                ).toLocaleTimeString()}</div>
+            `;
+
+        messagesContainer.appendChild(messageDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+
+      // Load online users
+      async function loadOnlineUsers() {
+        try {
+          const response = await fetch(
+            "http://localhost:8080/api/websocket/online-users",
+            {
+              headers: {
+                Authorization: "Bearer " + authToken,
+              },
+            }
+          );
+
+          if (response.ok) {
+            const users = await response.json();
+            displayUsers(users);
+          }
+        } catch (error) {
+          console.error("Error loading users:", error);
+        }
+      }
+
+      // Display users in sidebar
+      function displayUsers(users) {
+        const usersList = document.getElementById("usersList");
+        usersList.innerHTML = "";
+
+        users.forEach((user) => {
+          if (user.userId !== currentUser.id) {
+            const userDiv = document.createElement("div");
+            userDiv.className = "user-item";
+            userDiv.onclick = () =>
+              selectUser(user.userId, `User ${user.userId.substring(0, 8)}`);
+
+            userDiv.innerHTML = `
+                        <div class="online-indicator ${
+                          user.online ? "online" : "offline"
+                        }"></div>
+                        <div>User ${user.userId.substring(0, 8)}</div>
+                    `;
+
+            usersList.appendChild(userDiv);
+          }
+        });
+      }
+
+      // Select user for chat
+      function selectUser(userId, userName) {
+        selectedUserId = userId;
+
+        // Update UI
+        document.querySelectorAll(".user-item").forEach((item) => {
+          item.classList.remove("active");
+        });
+        event.target.closest(".user-item").classList.add("active");
+
+        document.getElementById(
+          "chatHeader"
+        ).innerHTML = `<h3>Chat with ${userName}</h3>`;
+        document.getElementById("messagesContainer").innerHTML = "";
+
+        // Load conversation history
+        loadConversation(userId);
+      }
+
+      // Load conversation history
+      async function loadConversation(userId) {
+        try {
+          const response = await fetch(
+            `http://localhost:8080/api/messages/thread/${userId}`,
+            {
+              headers: {
+                Authorization: "Bearer " + authToken,
+              },
+            }
+          );
+
+          if (response.ok) {
+            const conversation = await response.json();
+            conversation.messages.forEach((message) => {
+              const chatMessage = {
+                id: message.id,
+                senderId: message.senderId,
+                receiverId: message.receiverId,
+                content: message.content,
+                sentAt: message.sentAt,
+                senderName:
+                  message.senderId === currentUser.id
+                    ? "You"
+                    : conversation.otherUserName,
+              };
+              displayMessage(chatMessage);
+            });
+          }
+        } catch (error) {
+          console.error("Error loading conversation:", error);
+        }
+      }
+
+      // Update connection status
+      function updateConnectionStatus(connected) {
+        const statusDiv = document.getElementById("connectionStatus");
+        const statusText = document.getElementById("statusText");
+
+        if (connected) {
+          statusDiv.className = "connection-status connected";
+          statusText.textContent = "Connected to real-time chat";
+        } else {
+          statusDiv.className = "connection-status disconnected";
+          statusText.textContent = "Disconnected - trying to reconnect...";
+        }
+      }
+
+      // Handle enter key press
+      function handleKeyPress(event) {
+        if (event.key === "Enter") {
+          sendMessage();
+        }
+      }
+
+      // Update user status in UI
+      function updateUserStatus(userStatus) {
+        const userItems = document.querySelectorAll(".user-item");
+        userItems.forEach((item) => {
+          // Update online indicator based on user status
+          const indicator = item.querySelector(".online-indicator");
+          if (indicator) {
+            indicator.className = `online-indicator ${
+              userStatus.online ? "online" : "offline"
+            }`;
+          }
+        });
+      }
+
+      // Display connection request
+      function displayConnectionRequest(connection) {
+        const requestsDiv = document.getElementById("connectionRequests");
+        const requestDiv = document.createElement("div");
+        requestDiv.innerHTML = `
+                <div style="padding: 10px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 5px;">
+                    <div><strong>${connection.requesterName}</strong> wants to connect</div>
+                    <div style="margin-top: 10px;">
+                        <button onclick="respondToConnection('${connection.id}', 'ACCEPTED')" 
+                                style="background: #28a745; color: white; border: none; padding: 5px 10px; margin-right: 5px; border-radius: 3px;">Accept</button>
+                        <button onclick="respondToConnection('${connection.id}', 'DECLINED')"
+                                style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px;">Decline</button>
+                    </div>
+                </div>
+            `;
+        requestsDiv.appendChild(requestDiv);
+      }
+
+      // Respond to connection request
+      async function respondToConnection(connectionId, status) {
+        try {
+          const response = await fetch(
+            `http://localhost:8080/api/connections/${connectionId}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + authToken,
+              },
+              body: JSON.stringify({ status }),
+            }
+          );
+
+          if (response.ok) {
+            // Remove the request from UI
+            event.target.closest("div").remove();
+          }
+        } catch (error) {
+          console.error("Error responding to connection:", error);
+        }
+      }
+
+      // Cleanup on page unload
+      window.addEventListener("beforeunload", function () {
+        if (stompClient) {
+          stompClient.disconnect();
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -18,7 +18,8 @@ import java.util.*
 class ConnectionService(
     private val connectionRepository: ConnectionRepository,
     private val userRepository: UserRepository,
-    private val profileRepository: ProfileRepository
+    private val profileRepository: ProfileRepository,
+    private val webSocketService: WebSocketService
 ) {
 
     fun createConnection(request: CreateConnectionRequest): ConnectionResponse {
@@ -60,7 +61,12 @@ class ConnectionService(
         )
 
         val savedConnection = connectionRepository.save(connection)
-        return ConnectionMapper.toConnectionResponse(savedConnection, requester, target)
+        val connectionResponse = ConnectionMapper.toConnectionResponse(savedConnection, requester, target)
+        
+        // Send real-time notification via WebSocket
+        webSocketService.sendConnectionNotification(connectionResponse)
+        
+        return connectionResponse
     }
 
     fun getPendingConnections(): List<ConnectionResponse> {
@@ -107,7 +113,12 @@ class ConnectionService(
         val target = userRepository.findById(connection.targetId)
             .orElseThrow { RuntimeException("Target not found") }
             
-        return ConnectionMapper.toConnectionResponse(savedConnection, requester, target)
+        val connectionResponse = ConnectionMapper.toConnectionResponse(savedConnection, requester, target)
+        
+        // Send real-time notification via WebSocket
+        webSocketService.sendConnectionNotification(connectionResponse)
+        
+        return connectionResponse
     }
 
     fun getAcceptedConnections(): List<ConnectionResponse> {
