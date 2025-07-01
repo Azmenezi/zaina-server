@@ -12,7 +12,11 @@ object UserMapper {
             email = user.email,
             role = user.role,
             cohortId = user.cohortId,
-            profile = profile?.let { toProfileDto(it) }
+            profile = profile?.let { toProfileDto(it) },
+            createdAt = user.createdAt,
+            lastLoginAt = user.lastLoginAt,
+            isActive = user.isActive,
+            accountStatus = user.accountStatus
         )
     }
     

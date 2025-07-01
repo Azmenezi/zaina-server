@@ -17,22 +17,26 @@ class ConnectionController(
 ) {
 
     @PostMapping
-    fun createConnection(@Valid @RequestBody request: CreateConnectionRequest): ResponseEntity<ConnectionResponse> {
+    fun createConnection(@Valid @RequestBody request: CreateConnectionRequest): ResponseEntity<Any> {
         return try {
             val connection = connectionService.createConnection(request)
             ResponseEntity.ok(connection)
+        } catch (e: RuntimeException) {
+            ResponseEntity.badRequest().body(mapOf("error" to e.message))
         } catch (e: Exception) {
-            ResponseEntity.badRequest().build()
+            ResponseEntity.badRequest().body(mapOf("error" to "An unexpected error occurred: ${e.message}"))
         }
     }
 
     @GetMapping("/pending")
-    fun getPendingConnections(): ResponseEntity<List<ConnectionResponse>> {
+    fun getPendingConnections(): ResponseEntity<Any> {
         return try {
             val connections = connectionService.getPendingConnections()
             ResponseEntity.ok(connections)
+        } catch (e: RuntimeException) {
+            ResponseEntity.badRequest().body(mapOf("error" to e.message))
         } catch (e: Exception) {
-            ResponseEntity.badRequest().build()
+            ResponseEntity.badRequest().body(mapOf("error" to "An unexpected error occurred: ${e.message}"))
         }
     }
 
@@ -40,22 +44,26 @@ class ConnectionController(
     fun updateConnection(
         @PathVariable connectionId: UUID,
         @Valid @RequestBody request: UpdateConnectionRequest
-    ): ResponseEntity<ConnectionResponse> {
+    ): ResponseEntity<Any> {
         return try {
             val connection = connectionService.updateConnection(connectionId, request)
             ResponseEntity.ok(connection)
+        } catch (e: RuntimeException) {
+            ResponseEntity.badRequest().body(mapOf("error" to e.message))
         } catch (e: Exception) {
-            ResponseEntity.badRequest().build()
+            ResponseEntity.badRequest().body(mapOf("error" to "An unexpected error occurred: ${e.message}"))
         }
     }
 
     @GetMapping("/accepted")
-    fun getAcceptedConnections(): ResponseEntity<List<ConnectionResponse>> {
+    fun getAcceptedConnections(): ResponseEntity<Any> {
         return try {
             val connections = connectionService.getAcceptedConnections()
             ResponseEntity.ok(connections)
+        } catch (e: RuntimeException) {
+            ResponseEntity.badRequest().body(mapOf("error" to e.message))
         } catch (e: Exception) {
-            ResponseEntity.badRequest().build()
+            ResponseEntity.badRequest().body(mapOf("error" to "An unexpected error occurred: ${e.message}"))
         }
     }
 } 

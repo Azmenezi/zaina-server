@@ -47,9 +47,14 @@ class ConnectionService(
             }
         }
 
-        // Check if connection already exists
-        if (connectionRepository.existsByRequesterIdAndTargetIdAndType(requesterId, request.targetId, request.type)) {
-            throw RuntimeException("Connection request already exists")
+        // Check if connection already exists (any status)
+        val existingConnection = connectionRepository.findByRequesterIdAndTargetIdAndType(requesterId, request.targetId, request.type)
+        if (existingConnection != null) {
+            when (existingConnection.status) {
+                ConnectionStatus.PENDING -> throw RuntimeException("A ${request.type.name.lowercase()} request is already pending")
+                ConnectionStatus.ACCEPTED -> throw RuntimeException("You already have an accepted ${request.type.name.lowercase()} connection")
+                ConnectionStatus.DECLINED -> throw RuntimeException("Your previous ${request.type.name.lowercase()} request was declined")
+            }
         }
 
         val connection = Connection(

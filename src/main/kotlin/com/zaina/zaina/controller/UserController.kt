@@ -7,6 +7,7 @@ import com.zaina.zaina.dto.UserSummaryDto
 import com.zaina.zaina.entity.UserRole
 import com.zaina.zaina.service.UserService
 import jakarta.validation.Valid
+import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.util.*
@@ -17,14 +18,21 @@ import java.util.*
 class UserController(
     private val userService: UserService
 ) {
+    private val logger = LoggerFactory.getLogger(UserController::class.java)
 
     @GetMapping("/me")
-    fun getCurrentUser(): ResponseEntity<UserDto> {
+    fun getCurrentUser(): ResponseEntity<Any> {
         return try {
+            logger.info("Fetching current user data")
             val user = userService.getCurrentUser()
+            logger.info("Successfully retrieved user data for user ID: ${user.id}")
             ResponseEntity.ok(user)
+        } catch (e: RuntimeException) {
+            logger.error("Error fetching current user: ${e.message}")
+            ResponseEntity.badRequest().body(mapOf("error" to e.message))
         } catch (e: Exception) {
-            ResponseEntity.badRequest().build()
+            logger.error("Unexpected error fetching current user", e)
+            ResponseEntity.internalServerError().body(mapOf("error" to "An unexpected error occurred"))
         }
     }
 

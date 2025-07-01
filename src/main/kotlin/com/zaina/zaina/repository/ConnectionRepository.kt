@@ -14,6 +14,12 @@ interface ConnectionRepository : JpaRepository<Connection, UUID> {
     
     fun findByTargetIdAndStatus(targetId: UUID, status: ConnectionStatus): List<Connection>
     
+    fun findByRequesterIdAndTargetIdAndType(
+        requesterId: UUID, 
+        targetId: UUID, 
+        type: ConnectionType
+    ): Connection?
+    
     @Query("""
         SELECT c FROM Connection c 
         WHERE (c.requesterId = :userId OR c.targetId = :userId) 

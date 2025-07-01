@@ -3,6 +3,7 @@ package com.zaina.zaina.dto
 import com.zaina.zaina.entity.UserRole
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.NotBlank
+import java.time.LocalDateTime
 import java.util.*
 
 data class UserDto(
@@ -10,7 +11,12 @@ data class UserDto(
     val email: String,
     val role: UserRole,
     val cohortId: UUID?,
-    val profile: ProfileDto?
+    val profile: ProfileDto?,
+    // Additional user information
+    val createdAt: LocalDateTime? = null,
+    val lastLoginAt: LocalDateTime? = null,
+    val isActive: Boolean = true,
+    val accountStatus: String = "ACTIVE"
 )
 
 data class ProfileDto(
